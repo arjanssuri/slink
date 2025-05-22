@@ -1,0 +1,1 @@
+worker: python src/platforms/slack_bot.py 
