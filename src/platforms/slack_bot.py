@@ -3,6 +3,7 @@ import logging
 import json
 import re
 import time
+import sys
 from typing import Dict, Any, List, Optional, Tuple
 import threading
 from slack_sdk import WebClient
@@ -20,7 +21,20 @@ from src.utils.api_tracker import ApiTracker
 
 dotenv.load_dotenv()
 
+# Configure main logger
 logger = logging.getLogger(__name__)
+
+# Create a dedicated API timing logger
+api_timing_logger = logging.getLogger("api_timing")
+
+# Create console handler for API timing
+api_timing_handler = logging.StreamHandler()
+api_timing_handler.setLevel(logging.INFO)
+api_timing_formatter = logging.Formatter('⏱️ %(asctime)s - %(message)s', datefmt='%H:%M:%S')
+api_timing_handler.setFormatter(api_timing_formatter)
+api_timing_logger.addHandler(api_timing_handler)
+api_timing_logger.setLevel(logging.INFO)
+api_timing_logger.propagate = False  # Don't propagate to root logger
 
 class SlackBot:
     """
@@ -49,6 +63,10 @@ class SlackBot:
         # Start tracking time
         self.start_time = time.time()
         
+        # Print startup banner
+        self._print_banner("SLACK BOT STARTING")
+        print("API timing will be displayed for all requests\n")
+        
         # Get the bot's user ID
         start_time = time.time()
         auth_response = self.client.auth_test()
@@ -57,7 +75,7 @@ class SlackBot:
             "timestamp": time.time(),
             "duration_seconds": elapsed_time
         })
-        logger.info(f"Slack auth_test completed in {elapsed_time:.2f} seconds")
+        self._log_api_timing("slack_auth_test", elapsed_time)
         
         self.bot_id = auth_response["user_id"]
         self.bot_name = auth_response["user"]
@@ -75,6 +93,21 @@ class SlackBot:
         
         # Schedule regular performance reports
         self._schedule_performance_reports()
+        
+    def _print_banner(self, text: str):
+        """Print a formatted banner to the console."""
+        width = 60
+        padding = (width - len(text) - 2) // 2
+        print("\n" + "=" * width)
+        print(" " * padding + text + " " * padding)
+        print("=" * width + "\n")
+    
+    def _log_api_timing(self, api_name: str, duration: float, extra_info: str = ""):
+        """Log API timing information in a consistent, visible format."""
+        if extra_info:
+            api_timing_logger.info(f"API: {api_name:<25} | Time: {duration:.3f}s | {extra_info}")
+        else:
+            api_timing_logger.info(f"API: {api_name:<25} | Time: {duration:.3f}s")
         
     def _schedule_performance_reports(self):
         """Schedule regular performance reports to be generated."""
@@ -111,14 +144,15 @@ class SlackBot:
             hours, remainder = divmod(uptime, 3600)
             minutes, seconds = divmod(remainder, 60)
             
-            logger.info(f"=== API PERFORMANCE REPORT ===")
-            logger.info(f"Bot uptime: {int(hours)}h {int(minutes)}m {int(seconds)}s")
-            logger.info(f"Report generated at: {report_path}")
+            self._print_banner("API PERFORMANCE REPORT")
+            print(f"Bot uptime: {int(hours)}h {int(minutes)}m {int(seconds)}s")
+            print(f"Report generated at: {report_path}")
             
             if analysis["recommendations"]:
-                logger.info("Recommendations:")
+                print("\nRecommendations:")
                 for rec in analysis["recommendations"]:
-                    logger.info(f"  {rec['api']}: {rec['issue']} - {rec['recommendation']}")
+                    print(f"  {rec['api']}: {rec['issue']} - {rec['recommendation']}")
+            print()
                     
         except Exception as e:
             logger.error(f"Error generating performance report: {e}")
@@ -147,7 +181,7 @@ class SlackBot:
                 "timestamp": time.time(),
                 "duration_seconds": elapsed_time
             })
-            logger.info(f"Slack conversations_list completed in {elapsed_time:.2f} seconds")
+            self._log_api_timing("slack_conversations_list", elapsed_time)
             
             for dm in dm_response["channels"]:
                 channel_id = dm["id"]
@@ -165,7 +199,7 @@ class SlackBot:
                         "duration_seconds": elapsed_time,
                         "channel": channel_id
                     })
-                    logger.info(f"Slack conversations_history for {channel_id} completed in {elapsed_time:.2f} seconds")
+                    self._log_api_timing("conversations_history", elapsed_time, f"channel: {channel_id}")
                     
                     for message in history_response["messages"]:
                         # Skip messages we've already processed
@@ -215,7 +249,7 @@ class SlackBot:
                 "duration_seconds": elapsed_time,
                 "channel": channel_id
             })
-            logger.info(f"Slack chat_postMessage to {channel_id} completed in {elapsed_time:.2f} seconds")
+            self._log_api_timing("chat_postMessage", elapsed_time, f"channel: {channel_id}")
             
             # Store the conversation state
             self.conversations[user_id] = {
@@ -813,13 +847,15 @@ class SlackBot:
     def print_api_stats(self) -> None:
         """Print a summary of API call statistics to the console."""
         stats = self.get_api_call_stats()
+        self._print_banner("API CALL STATISTICS")
         self.api_tracker.print_summary(stats)
 
 if __name__ == "__main__":
     # Configure logging
     logging.basicConfig(
         level=logging.INFO,
-        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+        stream=sys.stdout
     )
     
     # Start the bot

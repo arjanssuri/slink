@@ -14,7 +14,20 @@ from src.core.linkedin_scraper import LinkedInScraper
 
 dotenv.load_dotenv()
 
+# Configure main logger
 logger = logging.getLogger(__name__)
+
+# Create a dedicated API timing logger if it doesn't exist
+api_timing_logger = logging.getLogger("api_timing")
+if not api_timing_logger.handlers:
+    # Create console handler for API timing
+    api_timing_handler = logging.StreamHandler()
+    api_timing_handler.setLevel(logging.INFO)
+    api_timing_formatter = logging.Formatter('⏱️ %(asctime)s - %(message)s', datefmt='%H:%M:%S')
+    api_timing_handler.setFormatter(api_timing_formatter)
+    api_timing_logger.addHandler(api_timing_handler)
+    api_timing_logger.setLevel(logging.INFO)
+    api_timing_logger.propagate = False  # Don't propagate to root logger
 
 class SimilarityCalculator:
     """
@@ -31,6 +44,13 @@ class SimilarityCalculator:
             logger.warning("ANTHROPIC_API_KEY environment variable not set. Similarity calculation will not work.")
         else:
             self.client = anthropic.Anthropic(api_key=self.api_key)
+    
+    def _log_api_timing(self, api_name: str, duration: float, extra_info: str = ""):
+        """Log API timing information in a consistent, visible format."""
+        if extra_info:
+            api_timing_logger.info(f"API: {api_name:<25} | Time: {duration:.3f}s | {extra_info}")
+        else:
+            api_timing_logger.info(f"API: {api_name:<25} | Time: {duration:.3f}s")
     
     def get_profiles(self, base_user_name: str, compare_user_name: str) -> Tuple[Dict[str, Any], Dict[str, Any]]:
         """
@@ -166,7 +186,7 @@ class SimilarityCalculator:
                 "model": "claude-3-7-sonnet-20250219",
                 "tokens": len(prompt) // 4  # Rough estimation of token count
             })
-            logger.info(f"Anthropic API call completed in {elapsed_time:.2f} seconds")
+            self._log_api_timing("anthropic_messages_create", elapsed_time, "model: claude-3-7-sonnet")
             
             # Parse response
             content = response.content[0].text
@@ -408,7 +428,7 @@ class SimilarityCalculator:
                 "model": "claude-3-opus-20240229",
                 "tokens": (len(system_message) + len(user_message)) // 4  # Rough estimation of token count
             })
-            logger.info(f"Anthropic API call completed in {elapsed_time:.2f} seconds for similarity calculation")
+            self._log_api_timing("anthropic_messages_create", elapsed_time, "model: claude-3-opus (similarity)")
             
             # Parse the response
             response_content = response.content[0].text.strip()

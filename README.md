@@ -244,6 +244,29 @@ Slonnect includes a comprehensive API performance tracking system that monitors 
 - Visualization tools for performance metrics
 - Recommendations for API optimization
 
+### Real-time API Timing Display
+
+The bot displays real-time API timing information in the terminal, making it easy to monitor the performance of all API calls:
+
+```
+⏱️ 15:54:27 - API: slack_auth_test          | Time: 0.342s
+⏱️ 15:54:28 - API: slack_conversations_list | Time: 0.215s
+⏱️ 15:54:29 - API: conversations_history    | Time: 0.187s | channel: D12345678
+⏱️ 15:54:30 - API: chat_postMessage         | Time: 0.265s | channel: D12345678
+⏱️ 15:54:35 - API: anthropic_messages_create | Time: 3.056s | model: claude-3-opus (similarity)
+```
+
+This helps you:
+- Identify slow API calls in real-time
+- Track API latency patterns
+- Debug performance issues during development
+- Monitor production performance
+
+To test the API timing display without running the full bot:
+```bash
+python src/tools/test_api_timing.py --all
+```
+
 ### Usage
 
 API tracking is enabled by default in the Slack bot. Performance reports are automatically generated hourly and saved to the `reports/api` directory.
@@ -284,6 +307,7 @@ The analysis tool provides recommendations for optimizing API usage based on:
 - `src/core/linkedin_scraper.py`: Retrieves LinkedIn profile data
 - `src/utils/api_tracker.py`: Tracks and analyzes API performance
 - `src/tools/analyze_api_performance.py`: Command-line tool for API analysis
+- `src/tools/test_api_timing.py`: Tool to test API timing display
 
 ## License
 
