@@ -1,8 +1,8 @@
-# Slonnect
+# Slink
 
 ## Project Description
 
-Slonnect is an intelligent networking assistant that automatically scans introduction channels in Discord and Slack, providing personalized recommendations for meaningful connections based on members' backgrounds, skills, and interests. By analyzing introductory messages, Slonnect helps users identify and reach out to potential collaborators, mentors, or professional contacts they might have otherwise missed.
+Slink is an intelligent networking assistant that automatically scans introduction channels in Discord and Slack, providing personalized recommendations for meaningful connections based on members' backgrounds, skills, and interests. By analyzing introductory messages, Slink helps users identify and reach out to potential collaborators, mentors, or professional contacts they might have otherwise missed.
 
 ## Features
 
@@ -17,10 +17,10 @@ Slonnect is an intelligent networking assistant that automatically scans introdu
 
 ```bash
 # Clone the repository
-git clone https://github.com/yourusername/slonnect.git
+git clone https://github.com/yourusername/slink.git
 
 # Install dependencies
-cd slonnect
+cd slink
 npm install
 
 # Set up your configuration
@@ -42,7 +42,7 @@ CHANNELS_TO_MONITOR=comma,separated,channel,ids
 
 ```python
 # Basic usage example
-from slonnect import NetworkBot
+from slink import NetworkBot
 
 # Initialize the bot
 bot = NetworkBot(discord_token, slack_token)
@@ -81,9 +81,9 @@ This project is licensed under the MIT License - see the [LICENSE.md](LICENSE.md
 
 ## Disclaimer
 
-Slonnect is designed to facilitate networking and should be used responsibly and ethically. Always respect community guidelines and individual privacy.
+Slink is designed to facilitate networking and should be used responsibly and ethically. Always respect community guidelines and individual privacy.
 
-slonnect/
+slink/
 │
 ├── src/
 │   ├── core/
@@ -151,7 +151,7 @@ slonnect/
 Directory Structure Explanation
 src/
 
-Contains the main source code for the Slonnect project
+Contains the main source code for the Slink project
 Organized into modular components for easy maintenance
 
 core/
