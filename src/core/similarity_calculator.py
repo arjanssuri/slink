@@ -3,6 +3,7 @@ import logging
 import json
 import sys
 import dotenv
+import time
 from typing import Dict, Any, List, Optional, Tuple
 import anthropic
 
@@ -22,6 +23,9 @@ class SimilarityCalculator:
     def __init__(self):
         self.linkedin_scraper = LinkedInScraper()
         self.api_key = os.environ.get("ANTHROPIC_API_KEY")
+        self.api_call_stats = {
+            "anthropic_messages_create": []
+        }
         
         if not self.api_key:
             logger.warning("ANTHROPIC_API_KEY environment variable not set. Similarity calculation will not work.")
@@ -145,7 +149,8 @@ class SimilarityCalculator:
         prompt = self._create_similarity_prompt(base_summary, compare_summary)
         
         try:
-            # Call Anthropic API
+            # Call Anthropic API with timing
+            start_time = time.time()
             response = self.client.messages.create(
                 model="claude-3-7-sonnet-20250219",
                 max_tokens=1024,
@@ -154,6 +159,14 @@ class SimilarityCalculator:
                     {"role": "user", "content": prompt}
                 ]
             )
+            elapsed_time = time.time() - start_time
+            self.api_call_stats["anthropic_messages_create"].append({
+                "timestamp": time.time(),
+                "duration_seconds": elapsed_time,
+                "model": "claude-3-7-sonnet-20250219",
+                "tokens": len(prompt) // 4  # Rough estimation of token count
+            })
+            logger.info(f"Anthropic API call completed in {elapsed_time:.2f} seconds")
             
             # Parse response
             content = response.content[0].text
@@ -375,7 +388,8 @@ class SimilarityCalculator:
             Return only a valid JSON object with similarity_score and explanation.
             """
             
-            # Call the Anthropic API
+            # Call the Anthropic API with timing
+            start_time = time.time()
             response = self.client.messages.create(
                 model="claude-3-opus-20240229",
                 max_tokens=1000,
@@ -385,6 +399,16 @@ class SimilarityCalculator:
                     {"role": "user", "content": user_message}
                 ]
             )
+            elapsed_time = time.time() - start_time
+            
+            # Log timing information
+            self.api_call_stats["anthropic_messages_create"].append({
+                "timestamp": time.time(),
+                "duration_seconds": elapsed_time,
+                "model": "claude-3-opus-20240229",
+                "tokens": (len(system_message) + len(user_message)) // 4  # Rough estimation of token count
+            })
+            logger.info(f"Anthropic API call completed in {elapsed_time:.2f} seconds for similarity calculation")
             
             # Parse the response
             response_content = response.content[0].text.strip()
@@ -568,6 +592,29 @@ Remember to focus on professional similarities and provide a clear justification
                 "similarity_score": 0,
                 "explanation": "Could not parse response due to an error."
             }
+    
+    def get_api_call_stats(self) -> Dict[str, List[Dict[str, Any]]]:
+        """
+        Get statistics about API calls.
+        
+        Returns:
+            A dictionary with API call statistics
+        """
+        stats = {}
+        
+        # Calculate averages for Anthropic API calls
+        anthropic_calls = self.api_call_stats.get("anthropic_messages_create", [])
+        if anthropic_calls:
+            total_duration = sum(call["duration_seconds"] for call in anthropic_calls)
+            avg_duration = total_duration / len(anthropic_calls)
+            stats["anthropic_messages_create"] = {
+                "total_calls": len(anthropic_calls),
+                "avg_duration_seconds": avg_duration,
+                "total_duration_seconds": total_duration,
+                "calls": anthropic_calls
+            }
+        
+        return stats
 
 if __name__ == "__main__":
     # Set up environment variables
@@ -602,3 +649,13 @@ if __name__ == "__main__":
     if "raw_response" in result:
         print("\nRaw Response:")
         print(result['raw_response'])
+        
+    # Print API call stats
+    stats = calculator.get_api_call_stats()
+    if stats:
+        print("\nAPI Call Stats:")
+        for api, api_stats in stats.items():
+            print(f"{api}:")
+            print(f"  Total calls: {api_stats['total_calls']}")
+            print(f"  Average duration: {api_stats['avg_duration_seconds']:.2f} seconds")
+            print(f"  Total duration: {api_stats['total_duration_seconds']:.2f} seconds")

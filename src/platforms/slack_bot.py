@@ -16,6 +16,7 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../.
 from src.platforms.slack import SlackConfiguration, User as SlackUser
 from src.core.linkedin_scraper import LinkedInScraper
 from src.core.similarity_calculator import SimilarityCalculator
+from src.utils.api_tracker import ApiTracker
 
 dotenv.load_dotenv()
 
@@ -34,8 +35,30 @@ class SlackBot:
             
         self.client = WebClient(token=self.bot_token)
         
+        # Initialize API call tracking
+        self.api_call_stats = {
+            "slack_auth_test": [],
+            "slack_conversations_list": [],
+            "slack_conversations_history": [],
+            "slack_chat_postMessage": []
+        }
+        
+        # Initialize API tracker
+        self.api_tracker = ApiTracker(report_dir="reports/api")
+        
+        # Start tracking time
+        self.start_time = time.time()
+        
         # Get the bot's user ID
+        start_time = time.time()
         auth_response = self.client.auth_test()
+        elapsed_time = time.time() - start_time
+        self.api_call_stats["slack_auth_test"].append({
+            "timestamp": time.time(),
+            "duration_seconds": elapsed_time
+        })
+        logger.info(f"Slack auth_test completed in {elapsed_time:.2f} seconds")
+        
         self.bot_id = auth_response["user_id"]
         self.bot_name = auth_response["user"]
         logger.info(f"Bot initialized with ID: {self.bot_id}, name: {self.bot_name}")
@@ -49,6 +72,56 @@ class SlackBot:
         
         # Processed message IDs to avoid duplicates
         self.processed_messages = set()
+        
+        # Schedule regular performance reports
+        self._schedule_performance_reports()
+        
+    def _schedule_performance_reports(self):
+        """Schedule regular performance reports to be generated."""
+        # Generate a report every hour
+        report_interval = 60 * 60  # 1 hour in seconds
+        
+        def generate_report_task():
+            while True:
+                time.sleep(report_interval)
+                self._generate_performance_report()
+        
+        # Start the report generation thread
+        report_thread = threading.Thread(target=generate_report_task, daemon=True)
+        report_thread.start()
+        logger.info("Scheduled hourly API performance reports")
+        
+    def _generate_performance_report(self):
+        """Generate a performance report for API calls."""
+        try:
+            stats = self.get_api_call_stats()
+            
+            # Generate timestamp for report name
+            from datetime import datetime
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            
+            # Generate report
+            report_path = self.api_tracker.generate_report(stats, f"api_performance_{timestamp}.json")
+            
+            # Generate analysis
+            analysis = self.api_tracker.analyze_api_performance(stats)
+            
+            # Log summary
+            uptime = time.time() - self.start_time
+            hours, remainder = divmod(uptime, 3600)
+            minutes, seconds = divmod(remainder, 60)
+            
+            logger.info(f"=== API PERFORMANCE REPORT ===")
+            logger.info(f"Bot uptime: {int(hours)}h {int(minutes)}m {int(seconds)}s")
+            logger.info(f"Report generated at: {report_path}")
+            
+            if analysis["recommendations"]:
+                logger.info("Recommendations:")
+                for rec in analysis["recommendations"]:
+                    logger.info(f"  {rec['api']}: {rec['issue']} - {rec['recommendation']}")
+                    
+        except Exception as e:
+            logger.error(f"Error generating performance report: {e}")
         
     def start(self):
         """Start the bot and listen for events."""
@@ -67,17 +140,32 @@ class SlackBot:
         """Check for direct messages to the bot."""
         try:
             # Get list of DMs
+            start_time = time.time()
             dm_response = self.client.conversations_list(types="im")
+            elapsed_time = time.time() - start_time
+            self.api_call_stats["slack_conversations_list"].append({
+                "timestamp": time.time(),
+                "duration_seconds": elapsed_time
+            })
+            logger.info(f"Slack conversations_list completed in {elapsed_time:.2f} seconds")
             
             for dm in dm_response["channels"]:
                 channel_id = dm["id"]
                 
                 try:
                     # Get recent messages
+                    start_time = time.time()
                     history_response = self.client.conversations_history(
                         channel=channel_id,
                         limit=5
                     )
+                    elapsed_time = time.time() - start_time
+                    self.api_call_stats["slack_conversations_history"].append({
+                        "timestamp": time.time(),
+                        "duration_seconds": elapsed_time,
+                        "channel": channel_id
+                    })
+                    logger.info(f"Slack conversations_history for {channel_id} completed in {elapsed_time:.2f} seconds")
                     
                     for message in history_response["messages"]:
                         # Skip messages we've already processed
@@ -116,10 +204,18 @@ class SlackBot:
             logger.info(f"Starting conversation with user {user_id}")
             
             # Ask if the user wants to search for similar profiles
+            start_time = time.time()
             response = self.client.chat_postMessage(
                 channel=channel_id,
                 text=f"Hello <@{user_id}>! Would you like to search for similar profiles and connect? (yes/no)"
             )
+            elapsed_time = time.time() - start_time
+            self.api_call_stats["slack_chat_postMessage"].append({
+                "timestamp": time.time(),
+                "duration_seconds": elapsed_time,
+                "channel": channel_id
+            })
+            logger.info(f"Slack chat_postMessage to {channel_id} completed in {elapsed_time:.2f} seconds")
             
             # Store the conversation state
             self.conversations[user_id] = {
@@ -150,10 +246,18 @@ class SlackBot:
             if any(word in text_lower for word in ["y", "yes", "sure", "ok", "okay"]):
                 # User wants to search for similar profiles
                 logger.info(f"User {user_id} confirmed YES")
+                start_time = time.time()
                 self.client.chat_postMessage(
                     channel=channel_id,
                     text="Great! Please provide your LinkedIn profile URL."
                 )
+                elapsed_time = time.time() - start_time
+                self.api_call_stats["slack_chat_postMessage"].append({
+                    "timestamp": time.time(),
+                    "duration_seconds": elapsed_time,
+                    "channel": channel_id
+                })
+                logger.info(f"Slack chat_postMessage to {channel_id} completed in {elapsed_time:.2f} seconds")
                 
                 # Update conversation state
                 self.conversations[user_id]["state"] = "awaiting_linkedin_url"
@@ -162,10 +266,18 @@ class SlackBot:
             else:
                 # User doesn't want to search for similar profiles
                 logger.info(f"User {user_id} declined")
+                start_time = time.time()
                 self.client.chat_postMessage(
                     channel=channel_id,
                     text="No problem! Let me know if you change your mind."
                 )
+                elapsed_time = time.time() - start_time
+                self.api_call_stats["slack_chat_postMessage"].append({
+                    "timestamp": time.time(),
+                    "duration_seconds": elapsed_time,
+                    "channel": channel_id
+                })
+                logger.info(f"Slack chat_postMessage to {channel_id} completed in {elapsed_time:.2f} seconds")
                 
                 # End the conversation
                 del self.conversations[user_id]
@@ -182,10 +294,18 @@ class SlackBot:
                 self.conversations[user_id]["base_linkedin_url"] = linkedin_url
                 
                 # Ask if they want to compare with a specific profile or search for similar profiles
+                start_time = time.time()
                 self.client.chat_postMessage(
                     channel=channel_id,
                     text="Would you like to:\n1️⃣ Compare with a specific LinkedIn profile\n2️⃣ Search for similar profiles among workspace members\n\nPlease respond with 1 or 2."
                 )
+                elapsed_time = time.time() - start_time
+                self.api_call_stats["slack_chat_postMessage"].append({
+                    "timestamp": time.time(),
+                    "duration_seconds": elapsed_time,
+                    "channel": channel_id
+                })
+                logger.info(f"Slack chat_postMessage to {channel_id} completed in {elapsed_time:.2f} seconds")
                 
                 # Update conversation state
                 self.conversations[user_id]["state"] = "awaiting_comparison_choice"
@@ -193,10 +313,18 @@ class SlackBot:
                 
             else:
                 # Invalid LinkedIn URL
+                start_time = time.time()
                 self.client.chat_postMessage(
                     channel=channel_id,
                     text="That doesn't look like a valid LinkedIn URL. Please provide a URL in the format: https://linkedin.com/in/username"
                 )
+                elapsed_time = time.time() - start_time
+                self.api_call_stats["slack_chat_postMessage"].append({
+                    "timestamp": time.time(),
+                    "duration_seconds": elapsed_time,
+                    "channel": channel_id
+                })
+                logger.info(f"Slack chat_postMessage to {channel_id} completed in {elapsed_time:.2f} seconds")
                 logger.info(f"User {user_id} provided invalid LinkedIn URL")
                 
         elif state == "awaiting_comparison_choice":
@@ -205,10 +333,18 @@ class SlackBot:
             
             if choice == "1":
                 # User wants to compare with a specific profile
+                start_time = time.time()
                 self.client.chat_postMessage(
                     channel=channel_id,
                     text="Please provide the LinkedIn URL of the profile you want to compare with."
                 )
+                elapsed_time = time.time() - start_time
+                self.api_call_stats["slack_chat_postMessage"].append({
+                    "timestamp": time.time(),
+                    "duration_seconds": elapsed_time,
+                    "channel": channel_id
+                })
+                logger.info(f"Slack chat_postMessage to {channel_id} completed in {elapsed_time:.2f} seconds")
                 
                 # Update conversation state
                 self.conversations[user_id]["state"] = "awaiting_comparison_url"
@@ -218,10 +354,18 @@ class SlackBot:
                 # User wants to search for similar profiles
                 base_linkedin_url = self.conversations[user_id].get("base_linkedin_url")
                 
+                start_time = time.time()
                 self.client.chat_postMessage(
                     channel=channel_id,
                     text="Thanks! I'm searching for similar profiles among workspace members. This may take a minute..."
                 )
+                elapsed_time = time.time() - start_time
+                self.api_call_stats["slack_chat_postMessage"].append({
+                    "timestamp": time.time(),
+                    "duration_seconds": elapsed_time,
+                    "channel": channel_id
+                })
+                logger.info(f"Slack chat_postMessage to {channel_id} completed in {elapsed_time:.2f} seconds")
                 
                 logger.info(f"User {user_id} chose to search for similar profiles")
                 
@@ -237,10 +381,18 @@ class SlackBot:
                 
             else:
                 # Invalid choice
+                start_time = time.time()
                 self.client.chat_postMessage(
                     channel=channel_id,
                     text="Please respond with 1 to compare with a specific profile or 2 to search for similar profiles."
                 )
+                elapsed_time = time.time() - start_time
+                self.api_call_stats["slack_chat_postMessage"].append({
+                    "timestamp": time.time(),
+                    "duration_seconds": elapsed_time,
+                    "channel": channel_id
+                })
+                logger.info(f"Slack chat_postMessage to {channel_id} completed in {elapsed_time:.2f} seconds")
                 
         elif state == "awaiting_comparison_url":
             # User is providing the URL to compare with
@@ -251,10 +403,18 @@ class SlackBot:
             if "linkedin.com/in/" in comparison_url:
                 base_linkedin_url = self.conversations[user_id].get("base_linkedin_url")
                 
+                start_time = time.time()
                 self.client.chat_postMessage(
                     channel=channel_id,
                     text=f"Thanks! I'm comparing the profiles. This may take a minute..."
                 )
+                elapsed_time = time.time() - start_time
+                self.api_call_stats["slack_chat_postMessage"].append({
+                    "timestamp": time.time(),
+                    "duration_seconds": elapsed_time,
+                    "channel": channel_id
+                })
+                logger.info(f"Slack chat_postMessage to {channel_id} completed in {elapsed_time:.2f} seconds")
                 
                 logger.info(f"User {user_id} provided comparison URL: {comparison_url}, starting comparison")
                 
@@ -270,10 +430,18 @@ class SlackBot:
                 
             else:
                 # Invalid LinkedIn URL
+                start_time = time.time()
                 self.client.chat_postMessage(
                     channel=channel_id,
                     text="That doesn't look like a valid LinkedIn URL. Please provide a URL in the format: https://linkedin.com/in/username"
                 )
+                elapsed_time = time.time() - start_time
+                self.api_call_stats["slack_chat_postMessage"].append({
+                    "timestamp": time.time(),
+                    "duration_seconds": elapsed_time,
+                    "channel": channel_id
+                })
+                logger.info(f"Slack chat_postMessage to {channel_id} completed in {elapsed_time:.2f} seconds")
                 logger.info(f"User {user_id} provided invalid comparison URL")
                 
     def _clean_slack_url(self, text: str) -> str:
@@ -312,10 +480,19 @@ class SlackBot:
             
             if not base_profile or not base_profile.get("success", False):
                 # Failed to get the profile
+                start_time = time.time()
                 self.client.chat_postMessage(
                     channel=channel_id,
                     text="Sorry, I couldn't retrieve that LinkedIn profile. Please check the URL and try again."
                 )
+                elapsed_time = time.time() - start_time
+                self.api_call_stats["slack_chat_postMessage"].append({
+                    "timestamp": time.time(),
+                    "duration_seconds": elapsed_time,
+                    "channel": channel_id
+                })
+                logger.info(f"Slack chat_postMessage to {channel_id} completed in {elapsed_time:.2f} seconds")
+                
                 logger.error(f"Failed to retrieve LinkedIn profile for {linkedin_url}")
                 return
             
@@ -357,10 +534,19 @@ class SlackBot:
             
             if not linkedin_profiles:
                 # No LinkedIn profiles found
+                start_time = time.time()
                 self.client.chat_postMessage(
                     channel=channel_id,
                     text="Sorry, I couldn't find any LinkedIn profiles for the users in this workspace."
                 )
+                elapsed_time = time.time() - start_time
+                self.api_call_stats["slack_chat_postMessage"].append({
+                    "timestamp": time.time(),
+                    "duration_seconds": elapsed_time,
+                    "channel": channel_id
+                })
+                logger.info(f"Slack chat_postMessage to {channel_id} completed in {elapsed_time:.2f} seconds")
+                
                 return
             
             # Find similar profiles
@@ -377,18 +563,36 @@ class SlackBot:
                 
             except Exception as e:
                 logger.error(f"Error in similarity calculation: {e}")
+                start_time = time.time()
                 self.client.chat_postMessage(
                     channel=channel_id,
                     text=f"Sorry, I encountered an error while calculating profile similarities: {str(e)}"
                 )
+                elapsed_time = time.time() - start_time
+                self.api_call_stats["slack_chat_postMessage"].append({
+                    "timestamp": time.time(),
+                    "duration_seconds": elapsed_time,
+                    "channel": channel_id
+                })
+                logger.info(f"Slack chat_postMessage to {channel_id} completed in {elapsed_time:.2f} seconds")
+                
                 return
             
             if not results:
                 # No similar profiles found
+                start_time = time.time()
                 self.client.chat_postMessage(
                     channel=channel_id,
                     text="I couldn't find any similar profiles in this workspace."
                 )
+                elapsed_time = time.time() - start_time
+                self.api_call_stats["slack_chat_postMessage"].append({
+                    "timestamp": time.time(),
+                    "duration_seconds": elapsed_time,
+                    "channel": channel_id
+                })
+                logger.info(f"Slack chat_postMessage to {channel_id} completed in {elapsed_time:.2f} seconds")
+                
                 logger.info("No similar profiles found")
                 return
             
@@ -421,19 +625,35 @@ class SlackBot:
                 message += f"Why similar: {explanation}\n\n"
             
             # Send the message
+            start_time = time.time()
             self.client.chat_postMessage(
                 channel=channel_id,
                 text=message
             )
+            elapsed_time = time.time() - start_time
+            self.api_call_stats["slack_chat_postMessage"].append({
+                "timestamp": time.time(),
+                "duration_seconds": elapsed_time,
+                "channel": channel_id
+            })
+            logger.info(f"Slack chat_postMessage to {channel_id} completed in {elapsed_time:.2f} seconds")
             
             logger.info("Sent similarity results to channel")
             
         except Exception as e:
             logger.error(f"Error finding similar profiles: {e}")
+            start_time = time.time()
             self.client.chat_postMessage(
                 channel=channel_id,
                 text=f"Sorry, an error occurred while finding similar profiles: {str(e)}"
             )
+            elapsed_time = time.time() - start_time
+            self.api_call_stats["slack_chat_postMessage"].append({
+                "timestamp": time.time(),
+                "duration_seconds": elapsed_time,
+                "channel": channel_id
+            })
+            logger.info(f"Slack chat_postMessage to {channel_id} completed in {elapsed_time:.2f} seconds")
 
     def _compare_specific_profiles(self, channel_id: str, user_id: str, base_url: str, comparison_url: str):
         """Compare two specific LinkedIn profiles."""
@@ -445,10 +665,19 @@ class SlackBot:
             
             if not base_profile or not base_profile.get("success", False):
                 # Failed to get the base profile
+                start_time = time.time()
                 self.client.chat_postMessage(
                     channel=channel_id,
                     text=f"Sorry, I couldn't retrieve the LinkedIn profile for {base_url}. Please check the URL and try again."
                 )
+                elapsed_time = time.time() - start_time
+                self.api_call_stats["slack_chat_postMessage"].append({
+                    "timestamp": time.time(),
+                    "duration_seconds": elapsed_time,
+                    "channel": channel_id
+                })
+                logger.info(f"Slack chat_postMessage to {channel_id} completed in {elapsed_time:.2f} seconds")
+                
                 logger.error(f"Failed to retrieve LinkedIn profile for {base_url}")
                 return
             
@@ -457,10 +686,19 @@ class SlackBot:
             
             if not comparison_profile or not comparison_profile.get("success", False):
                 # Failed to get the comparison profile
+                start_time = time.time()
                 self.client.chat_postMessage(
                     channel=channel_id,
                     text=f"Sorry, I couldn't retrieve the LinkedIn profile for {comparison_url}. Please check the URL and try again."
                 )
+                elapsed_time = time.time() - start_time
+                self.api_call_stats["slack_chat_postMessage"].append({
+                    "timestamp": time.time(),
+                    "duration_seconds": elapsed_time,
+                    "channel": channel_id
+                })
+                logger.info(f"Slack chat_postMessage to {channel_id} completed in {elapsed_time:.2f} seconds")
+                
                 logger.error(f"Failed to retrieve LinkedIn profile for {comparison_url}")
                 return
             
@@ -473,10 +711,19 @@ class SlackBot:
                 logger.info(f"Similarity calculation result: {json.dumps(result, indent=2) if result else 'None'}")
                 
                 if not result:
+                    start_time = time.time()
                     self.client.chat_postMessage(
                         channel=channel_id,
                         text="I couldn't calculate the similarity between these profiles."
                     )
+                    elapsed_time = time.time() - start_time
+                    self.api_call_stats["slack_chat_postMessage"].append({
+                        "timestamp": time.time(),
+                        "duration_seconds": elapsed_time,
+                        "channel": channel_id
+                    })
+                    logger.info(f"Slack chat_postMessage to {channel_id} completed in {elapsed_time:.2f} seconds")
+                    
                     return
                 
                 # Create a message with the result
@@ -490,26 +737,83 @@ class SlackBot:
                 message += f"*Why similar*: {explanation}\n\n"
                 
                 # Send the message
+                start_time = time.time()
                 self.client.chat_postMessage(
                     channel=channel_id,
                     text=message
                 )
+                elapsed_time = time.time() - start_time
+                self.api_call_stats["slack_chat_postMessage"].append({
+                    "timestamp": time.time(),
+                    "duration_seconds": elapsed_time,
+                    "channel": channel_id
+                })
+                logger.info(f"Slack chat_postMessage to {channel_id} completed in {elapsed_time:.2f} seconds")
                 
                 logger.info("Sent comparison results to channel")
                 
             except Exception as e:
                 logger.error(f"Error in similarity calculation: {e}")
+                start_time = time.time()
                 self.client.chat_postMessage(
                     channel=channel_id,
                     text=f"Sorry, I encountered an error while calculating profile similarities: {str(e)}"
                 )
+                elapsed_time = time.time() - start_time
+                self.api_call_stats["slack_chat_postMessage"].append({
+                    "timestamp": time.time(),
+                    "duration_seconds": elapsed_time,
+                    "channel": channel_id
+                })
+                logger.info(f"Slack chat_postMessage to {channel_id} completed in {elapsed_time:.2f} seconds")
                 
         except Exception as e:
             logger.error(f"Error comparing profiles: {e}")
+            start_time = time.time()
             self.client.chat_postMessage(
                 channel=channel_id,
                 text=f"Sorry, an error occurred while comparing the profiles: {str(e)}"
             )
+            elapsed_time = time.time() - start_time
+            self.api_call_stats["slack_chat_postMessage"].append({
+                "timestamp": time.time(),
+                "duration_seconds": elapsed_time,
+                "channel": channel_id
+            })
+            logger.info(f"Slack chat_postMessage to {channel_id} completed in {elapsed_time:.2f} seconds")
+    
+    def get_api_call_stats(self) -> Dict[str, Any]:
+        """
+        Get statistics about API calls.
+        
+        Returns:
+            A dictionary with API call statistics
+        """
+        stats = {}
+        
+        # Calculate statistics for each API call type
+        for api_type, calls in self.api_call_stats.items():
+            if calls:
+                total_duration = sum(call["duration_seconds"] for call in calls)
+                avg_duration = total_duration / len(calls)
+                stats[api_type] = {
+                    "total_calls": len(calls),
+                    "avg_duration_seconds": avg_duration,
+                    "total_duration_seconds": total_duration,
+                    "last_10_calls": calls[-10:] if len(calls) > 10 else calls
+                }
+        
+        # Get stats from similarity calculator
+        if hasattr(self, 'similarity_calculator') and hasattr(self.similarity_calculator, 'get_api_call_stats'):
+            similarity_stats = self.similarity_calculator.get_api_call_stats()
+            stats["anthropic"] = similarity_stats
+        
+        return stats
+    
+    def print_api_stats(self) -> None:
+        """Print a summary of API call statistics to the console."""
+        stats = self.get_api_call_stats()
+        self.api_tracker.print_summary(stats)
 
 if __name__ == "__main__":
     # Configure logging
@@ -526,5 +830,12 @@ if __name__ == "__main__":
         bot.start()
     except KeyboardInterrupt:
         logger.info("Bot stopped by user")
+        
+        # Generate a final performance report
+        bot._generate_performance_report()
+        
+        # Print API stats before exiting
+        bot.print_api_stats()
+        
     except Exception as e:
         logger.error(f"Error starting bot: {e}")

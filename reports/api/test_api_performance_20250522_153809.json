@@ -1,0 +1,183 @@
+{
+  "timestamp": 1747946289.2377841,
+  "generated_at": "2025-05-22T15:38:09.237784",
+  "api_stats": {
+    "api_one": {
+      "total_calls": 11,
+      "avg_duration_seconds": 0.08618741369151703,
+      "total_duration_seconds": 0.9480615506066873,
+      "calls": [
+        {
+          "timestamp": 1747946288.9131541,
+          "duration_seconds": 0.14937269310498
+        },
+        {
+          "timestamp": 1747946288.925739,
+          "duration_seconds": 0.12289565812102257
+        },
+        {
+          "timestamp": 1747946288.938344,
+          "duration_seconds": 0.12511552125518524
+        },
+        {
+          "timestamp": 1747946288.976067,
+          "duration_seconds": 0.0020851270423124513
+        },
+        {
+          "timestamp": 1747946289.001191,
+          "duration_seconds": 0.08869940183753497
+        },
+        {
+          "timestamp": 1747946289.013748,
+          "duration_seconds": 0.07067557667775982
+        },
+        {
+          "timestamp": 1747946289.076558,
+          "duration_seconds": 0.2139560785696895
+        },
+        {
+          "timestamp": 1747946289.112006,
+          "duration_seconds": 0.06263682548003915
+        },
+        {
+          "timestamp": 1747946289.124578,
+          "duration_seconds": 0.06321274569646243
+        },
+        {
+          "timestamp": 1747946289.1497111,
+          "duration_seconds": 0.001
+        },
+        {
+          "timestamp": 1747946289.187383,
+          "duration_seconds": 0.04841192282170112
+        }
+      ]
+    },
+    "api_two": {
+      "total_calls": 8,
+      "avg_duration_seconds": 0.9014246904677636,
+      "total_duration_seconds": 7.211397523742109,
+      "calls": [
+        {
+          "timestamp": 1747946288.8649669,
+          "duration_seconds": 0.43949044460034176
+        },
+        {
+          "timestamp": 1747946288.877564,
+          "duration_seconds": 2.3386125328534852
+        },
+        {
+          "timestamp": 1747946288.950912,
+          "duration_seconds": 0.6254570587212989
+        },
+        {
+          "timestamp": 1747946288.963478,
+          "duration_seconds": 0.42311303379429493
+        },
+        {
+          "timestamp": 1747946289.0263019,
+          "duration_seconds": 0.8701752817203504
+        },
+        {
+          "timestamp": 1747946289.0514429,
+          "duration_seconds": 0.9100920988031846
+        },
+        {
+          "timestamp": 1747946289.099448,
+          "duration_seconds": 0.9118461014693248
+        },
+        {
+          "timestamp": 1747946289.137145,
+          "duration_seconds": 0.6926109717798283
+        }
+      ]
+    },
+    "api_three": {
+      "total_calls": 11,
+      "avg_duration_seconds": 3.0100840129682656,
+      "total_duration_seconds": 33.11092414265092,
+      "calls": [
+        {
+          "timestamp": 1747946288.890156,
+          "duration_seconds": 2.2363083487007365
+        },
+        {
+          "timestamp": 1747946288.9005492,
+          "duration_seconds": 8.94727060192642
+        },
+        {
+          "timestamp": 1747946288.9886348,
+          "duration_seconds": 3.3895474996103587
+        },
+        {
+          "timestamp": 1747946289.0388632,
+          "duration_seconds": 3.627928752492999
+        },
+        {
+          "timestamp": 1747946289.0639942,
+          "duration_seconds": 1.4487800826177377
+        },
+        {
+          "timestamp": 1747946289.087043,
+          "duration_seconds": 1.88060210785795
+        },
+        {
+          "timestamp": 1747946289.162278,
+          "duration_seconds": 2.3021556721448757
+        },
+        {
+          "timestamp": 1747946289.174829,
+          "duration_seconds": 2.836929486272357
+        },
+        {
+          "timestamp": 1747946289.1999428,
+          "duration_seconds": 1.467889606050318
+        },
+        {
+          "timestamp": 1747946289.212509,
+          "duration_seconds": 3.369734245350733
+        },
+        {
+          "timestamp": 1747946289.2251022,
+          "duration_seconds": 1.603777739626437
+        }
+      ]
+    }
+  },
+  "summary": {
+    "total_api_calls": 30,
+    "total_duration_seconds": 41.27038321699972,
+    "slowest_api": "api_three",
+    "fastest_api": "api_one",
+    "slowest_avg_duration": 3.0100840129682656,
+    "fastest_avg_duration": 0.08618741369151703,
+    "apis_by_volume": [
+      {
+        "api": "api_one",
+        "calls": 11
+      },
+      {
+        "api": "api_three",
+        "calls": 11
+      },
+      {
+        "api": "api_two",
+        "calls": 8
+      }
+    ],
+    "apis_by_avg_duration": [
+      {
+        "api": "api_three",
+        "avg_duration_seconds": 3.0100840129682656
+      },
+      {
+        "api": "api_two",
+        "avg_duration_seconds": 0.9014246904677636
+      },
+      {
+        "api": "api_one",
+        "avg_duration_seconds": 0.08618741369151703
+      }
+    ]
+  }
+}

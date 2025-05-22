@@ -209,3 +209,82 @@ Notes
 Use virtual environments for dependency management
 Follow Python best practices and PEP 8 style guidelines
 Maintain clear separation of concerns between modules
+
+# Slonnect - LinkedIn Connection Recommender for Slack
+
+Slonnect is a Slack bot that analyzes LinkedIn profiles to find similar professionals within your workspace. It helps users connect with colleagues who have similar backgrounds, skills, or experiences.
+
+## Features
+
+- Direct message interface for interacting with the bot
+- LinkedIn profile analysis and comparison
+- Similar profile search among workspace members
+- Detailed similarity scoring with explanations
+
+## Setup
+
+1. Clone the repository
+2. Install dependencies: `pip install -r requirements.txt`
+3. Set up environment variables in a `.env` file:
+   ```
+   SLACK_BOT_TOKEN=your_slack_bot_token
+   ANTHROPIC_API_KEY=your_anthropic_api_key
+   ```
+4. Run the bot: `python src/platforms/slack_bot.py`
+
+## API Performance Tracking
+
+Slonnect includes a comprehensive API performance tracking system that monitors and analyzes the performance of all API calls made by the application. This helps identify bottlenecks, optimize performance, and ensure reliable service.
+
+### Features
+
+- Real-time API call timing and logging
+- Automatic performance report generation
+- Response time analysis with percentiles and outlier detection
+- Visualization tools for performance metrics
+- Recommendations for API optimization
+
+### Usage
+
+API tracking is enabled by default in the Slack bot. Performance reports are automatically generated hourly and saved to the `reports/api` directory.
+
+#### Analyzing Performance Reports
+
+Use the included analysis tool to examine API performance:
+
+```bash
+# View the latest report
+python src/tools/analyze_api_performance.py --latest
+
+# Compare the last 5 reports
+python src/tools/analyze_api_performance.py --compare 5
+
+# Focus on a specific API
+python src/tools/analyze_api_performance.py --api anthropic_messages_create
+
+# Generate visualizations
+python src/tools/analyze_api_performance.py --output charts/
+
+# Analyze response time distribution
+python src/tools/analyze_api_performance.py --distribution --output charts/
+```
+
+#### Performance Optimization
+
+The analysis tool provides recommendations for optimizing API usage based on:
+
+- APIs with high response times
+- APIs with high call volumes
+- Unusual response time patterns or outliers
+
+## Architecture
+
+- `src/platforms/slack_bot.py`: Main bot implementation
+- `src/core/similarity_calculator.py`: Calculates profile similarities using Anthropic API
+- `src/core/linkedin_scraper.py`: Retrieves LinkedIn profile data
+- `src/utils/api_tracker.py`: Tracks and analyzes API performance
+- `src/tools/analyze_api_performance.py`: Command-line tool for API analysis
+
+## License
+
+MIT
