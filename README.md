@@ -82,3 +82,130 @@ This project is licensed under the MIT License - see the [LICENSE.md](LICENSE.md
 ## Disclaimer
 
 Slonnect is designed to facilitate networking and should be used responsibly and ethically. Always respect community guidelines and individual privacy.
+
+slonnect/
+│
+├── src/
+│   ├── core/
+│   │   ├── __init__.py
+│   │   ├── bot.py              # Main bot class and core functionality
+│   │   ├── matcher.py          # Connection matching algorithm
+│   │   └── preprocessor.py     # Message preprocessing and analysis
+│   │
+│   ├── platforms/
+│   │   ├── __init__.py
+│   │   ├── discord_handler.py  # Discord-specific integration
+│   │   └── slack_handler.py    # Slack-specific integration
+│   │
+│   ├── utils/
+│   │   ├── __init__.py
+│   │   ├── config.py           # Configuration management
+│   │   ├── logger.py           # Logging utilities
+│   │   └── privacy.py          # Privacy and consent management
+│   │
+│   └── ml/
+│       ├── __init__.py
+│       ├── nlp_model.py        # Natural Language Processing model
+│       └── similarity.py       # Similarity scoring algorithms
+│
+├── tests/
+│   ├── test_core/
+│   │   ├── test_bot.py
+│   │   ├── test_matcher.py
+│   │   └── test_preprocessor.py
+│   │
+│   ├── test_platforms/
+│   │   ├── test_discord.py
+│   │   └── test_slack.py
+│   │
+│   └── test_ml/
+│       ├── test_nlp.py
+│       └── test_similarity.py
+│
+├── scripts/
+│   ├── setup.py                # Installation and setup script
+│   ├── train_model.py          # Model training script
+│   └── run_bot.py              # Main script to run the bot
+│
+├── configs/
+│   ├── default_config.yaml     # Default configuration
+│   └── platforms.json          # Platform-specific settings
+│
+├── data/
+│   ├── models/                 # Saved ML models
+│   └── cache/                  # Temporary data storage
+│
+├── docs/
+│   ├── architecture.md         # System architecture documentation
+│   ├── installation.md         # Detailed installation guide
+│   └── usage.md                # Usage instructions
+│
+├── requirements.txt            # Python dependencies
+├── setup.py                    # Package setup file
+├── .env.example                # Example environment configuration
+├── .gitignore
+├── LICENSE
+├── README.md
+└── CONTRIBUTING.md
+
+Directory Structure Explanation
+src/
+
+Contains the main source code for the Slonnect project
+Organized into modular components for easy maintenance
+
+core/
+
+Central bot logic and core functionality
+Includes main bot class, matching algorithm, and message preprocessing
+
+platforms/
+
+Platform-specific integration handlers
+Separate modules for Discord and Slack to manage unique API interactions
+
+utils/
+
+Utility modules for configuration, logging, and privacy management
+Provides supporting functions for the main application
+
+ml/
+
+Machine learning components
+Natural Language Processing and similarity scoring algorithms
+
+tests/
+
+Comprehensive test suite mirroring the source code structure
+Ensures reliability and maintains code quality
+
+scripts/
+
+Utility scripts for setup, model training, and bot execution
+
+configs/
+
+Configuration files for different environments and platforms
+
+data/
+
+Storage for machine learning models and temporary data
+
+docs/
+
+Project documentation
+Includes architectural overview, installation, and usage guides
+
+Recommended Development Workflow
+
+Develop core functionality in the src/ directory
+Write corresponding tests in the tests/ directory
+Use scripts/ for deployment and maintenance tasks
+Keep configurations in the configs/ directory
+Document extensively in the docs/ directory
+
+Notes
+
+Use virtual environments for dependency management
+Follow Python best practices and PEP 8 style guidelines
+Maintain clear separation of concerns between modules
